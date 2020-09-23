@@ -1,0 +1,17 @@
+body {
+	background-color: black;
+}
+
+li {
+	color: gray;
+}
+div{
+	width: 48%;
+	color:gray;
+}
+
+#gamestats{
+    width: 48%;
+    float: right;
+    border: 1px solid red;
+}
