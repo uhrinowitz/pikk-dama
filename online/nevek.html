@@ -1,0 +1,42 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script
+  src="https://code.jquery.com/jquery-3.4.1.js"
+  integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
+  crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="style.css">
+<div class="container">
+	<div id="chatWindow" class="jumbotron">
+		<h1 class="display-4">Add meg a neved</h1>
+		<input id = "nameBox" class="form-control" placeholder="Név...">
+		<br>
+		<br>
+		<button id="send" class="btn btn-success" onclick="enterGame()">Belépés</button>
+		</div>
+</div>
+
+<script>
+var socket = io.connect('http://localhost:4200');
+
+function enterGame(){
+    let nameBox = document.getElementById("nameBox");
+    let name = nameBox.value;
+    if(name.length > 0){
+        // rout player to gaming room
+        let playerName = name;
+        let playerSocketID = socket.io.engine.id;
+        let data = {
+            playerName: playerName,
+            playerSocketID: playerSocketID
+        };
+	    console.log("socket id sent to server is: " + playerSocketID + " + " + name);
+        socket.emit('join', data);
+        location.href = "\\games"
+
+    } else{
+        // name required
+        alert("Muszáj megadnod a neved!");
+    }
+}
+</script>

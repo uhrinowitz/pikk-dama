@@ -6,12 +6,69 @@ li {
 	color: gray;
 }
 div{
-	width: 48%;
 	color:gray;
 }
 
 #gamestats{
-    width: 48%;
+    width: 20%;
     float: right;
     border: 1px solid red;
+}
+
+#chatWindow{
+	padding: 10px;
+	float: left;
+
+}
+#messages{
+	height: 280px;
+	width: 280px;
+	float:left;
+	border: 1px solid red;
+	background-color: #dfdfdf;
+}
+
+.flexbox-container{
+	height: 20%;
+	background-color: #007F00;
+	display: flex;
+	justify-content: space-around;
+	align-items: flex-start;
+}
+
+.flexbox-item{
+	width: 200px;
+	margin: 10px;
+	border: 3px solid #333;
+	background-color: #dfdfdf;
+}
+
+.flexbox-item-1{
+	min-height: 150;
+	min-width: 300;
+	width: 20%;
+}
+.flexbox-item-2{
+	min-height: 150;
+	min-width: 300;
+	width: 20%;
+}
+.flexbox-item-3{
+	min-height: 150;
+	min-width: 300;
+	width: 20%;
+	
+}
+.flexbox-item-sajat{
+	min-height: 150;
+	min-width: 300;
+	width: 20%;
+}
+.flexbox-dobottKartyak{
+	min-height: 150;
+	min-width: 300;
+	width: 15%;
+}
+.container{
+	float:left;
 }

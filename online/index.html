@@ -5,25 +5,41 @@
   crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="style.css">
+
+<div class="flexbox-container">
+	<div id="playerTop" class="flexbox-item flexbox-item-1">Other Player1</div>
+</div>
+<div class="flexbox-container">
+	<div id="playerRight"class="flexbox-item flexbox-item-2">Other Player2
+
+	</div>
+	<div id="dobottKartyak"class="flexbox-item flexbox-dobottKartyak">Dobott kártyák</div>
+	<div id="playerLeft"class="flexbox-item flexbox-item-3">Other Player3</div>
+</div>
+<div class="flexbox-container">
+	<div id="cards"class="flexbox-item flexbox-item-sajat">A kártyáid</div>
+</div>
 <div id="gamestats">Game Stats</div>
-<div id="cards">A kártyáid</div>
+
 
 
 <div class="container">
-	<div class="jumbotron">
-	<h1 class="display-4">Chat panel</h1>
-	<input id = "name" class="form-control" placeholder="Name">
-	<br>
-	<textarea id = "message" class="form-control" placeholder="Your Message Here">
-   </textarea>
-	<br>
-	<button id="send" class="btn btn-success" onclick="sendMessage()">Send</button>
-	<!-- <textarea id = "textAreatext" class="form-control" placeholder="Your Message Here"></textarea> -->
-	</div>
-	<div id="messages">
-	
-   </div>
-   </div>
+	<div id="chatWindow" class="jumbotron">
+		<h1 class="display-4">Chat panel</h1>
+		<input id = "name" class="form-control" placeholder="Name">
+		<br>
+		<textarea id = "message" class="form-control" placeholder="Your Message Here">
+	</textarea>
+		<br>
+		<button id="send" class="btn btn-success" onclick="sendMessage()">Send</button>
+		<!-- <textarea id = "textAreatext" class="form-control" placeholder="Your Message Here"></textarea> -->
+		</div>
+		<div id="messages">
+			<h3>Üzenetek</h3>
+		
+		</div>
+</div>
 
 <script type="text/javascript" src="main.js"></script>
 
@@ -32,28 +48,26 @@ var socket = io.connect('http://localhost:4200');
 let domTarget;
 
 // when client connects to server
-socket.on('connect', function(data) {
-	let playerSocketID = socket.io.engine.id;
-	console.log("socket id sent to server is: " + playerSocketID);
-	socket.emit('join', playerSocketID);
-	});
+// socket.on('connect', function(data) {
+// 	let playerSocketID = socket.io.engine.id;
+// 	console.log("socket id sent to server is: " + playerSocketID);
+// 	socket.emit('join', playerSocketID);
+// 	});
 
-	// notifies of connections
-	socket.on('connect', function() {
-  		if(socket.connected){
-			let text = "You are connected to the server.";
-			appendStats(text);
-  		} else {
-			let text = "Connection to server is lost.";
-			appendStats(text);
-		}
-	});
+	// // notifies of connections
+	// socket.on('connect', function() {
+  	// 	if(socket.connected){
+	// 		let text = "You are connected to the server.";
+	// 		appendStats(text);
+  	// 	} else {
+	// 		let text = "Connection to server is lost.";
+	// 		appendStats(text);
+	// 	}
+	// });
+
 	
-	// listens to welcome
-    socket.on('welcome', function(data) {
-		console.log("data received is: " + data);
-	});
-	
+	// FROM HERE CAN SEND INDEX.HTML
+
 	// listens to when all players joined and notify server
     socket.on('onePlayerJoined', function(counter) {
 		console.log("Number of connections: " + counter);
@@ -86,7 +100,7 @@ socket.on('connect', function(data) {
 				// add
 				for(j=0; j<13; j++){
 					let text = getColor(data.players[i].playerCards[j].color) + " " + getNumber(data.players[i].playerCards[j].number);
-					appendStats(text);
+					appendStats(text, "cards");
 				}
 				console.log("my player cards are: " + data.players[i].playerCards);
 			}
@@ -101,7 +115,14 @@ socket.on('connect', function(data) {
 		appendStats(text);
 	})
 	socket.on('onCorrectPlayerPick', (text)=>{
-		appendStats(text);
+		// check if we have 4 so new round can start clear
+		let numberOfDobottKartyak = document.querySelectorAll(".dobottKartyak");
+		if(numberOfDobottKartyak.length == 4){
+			for(i=0; i<numberOfDobottKartyak.length; i++){
+				numberOfDobottKartyak[i].remove();
+			}
+		}
+		appendStats(text, "dobottKartyak");
 	})
 	socket.on('notYourTurn', (text)=>{
 		alert(text);
@@ -117,12 +138,16 @@ socket.on('connect', function(data) {
 	})
 
 	socket.on('messageReceived', (text)=>{
-		appendStats(text);
+		appendStats(text, "messages");
 	})
 	
 	socket.on('removeCardfromDom', ()=>{
 		// e.target.remove();
 		domTarget.remove();
+	})
+
+	socket.on('err', (message)=>{
+		console.log("Már negvannak négyen!");
 	})
 	socket.on('gameOver', ()=>{
 		text = "GAME OVER";
@@ -152,18 +177,30 @@ socket.on('broad', function(data) {
 	$('#future').append(data+ "<br/>");
 });
 
+
+
 $('form').submit(function(e){
 e.preventDefault();
 var message = $('#chat_input').val();
 socket.emit('messages', message);
 });
 
-function appendStats (text) {
-	var li = document.createElement("li");
-	text = document.createTextNode(text);
-	li.appendChild(text);
-	var addToDiv = document.getElementById("gamestats");
-	addToDiv.appendChild(li);
+function appendStats (text, div="gamestats") {
+	if(div=="dobottKartyak"){
+		var li = document.createElement("li");
+		li.className = "dobottKartyak"
+		text = document.createTextNode(text);
+		li.appendChild(text);
+		var addToDiv = document.getElementById(div);
+		addToDiv.appendChild(li);
+
+	} else{
+		var li = document.createElement("li");
+		text = document.createTextNode(text);
+		li.appendChild(text);
+		var addToDiv = document.getElementById(div);
+		addToDiv.appendChild(li);
+	}
 }
 
 // name cards
@@ -221,6 +258,10 @@ function sendMessage(){
 	let message = document.getElementById("message").value;
 	text = name + " says: " + message;
 	socket.emit('chatMessage', text);
+	// reset content
+	let m = document.getElementById("message");
+	m.value = "";
+
 }
 
 // init
@@ -587,12 +628,6 @@ function appendStats (text) {
 }
 */
  
-function appendStats (text) {
-	var li = document.createElement("li");
-	text = document.createTextNode(text);
-	li.appendChild(text);
-	var addToDiv = document.getElementById("gamestats");
-	addToDiv.appendChild(li);
-}
+
 
 </script>

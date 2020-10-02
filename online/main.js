@@ -10,13 +10,22 @@ let appPort = process.env.PORT || 4200;
 
 // send main file when launching localhost app
 app.get('/', function(req, res) {  
+    res.sendFile(__dirname + '/nevek.html');
+});
+
+app.get('/games', function(req, res) {  
     res.sendFile(__dirname + '/index.html');
 });
+app.get('/style.css', function(req, res) {
+	res.sendFile(__dirname + "/" + "style.css");
+  });
 
 // server specific variables
 let clients = [];
 let players = [];
 let deck = [];
+let names = [];
+let connectionsLimit = 4;
 
 // game specific variables
 let round = 1;
@@ -32,26 +41,38 @@ let evalCards = [];
 // sends welcome message to be dispalyed in browser console
 io.sockets.on('connection', function(socket){
 	console.log("Server started");
-	socket.emit('welcome', "welcome to the server!");
+		if (io.engine.clientsCount > connectionsLimit) {
+		socket.emit('err', { message: 'reach the limit of connections' })
+		socket.disconnect()
+		console.log('Disconnected...')
+		return
+	  }
+	  socket.emit('welcome', "welcome to the server!");
 
 // listens for client ids with join and pushes them to array
 // displays all ids in the black console
-socket.on('join', function(clientID){
-		console.log(clientID);
-		clients.push(clientID);
+socket.on('join', function(data){
+		console.log(data.playerSocketID);
+		clients.push(data.playerSocketID);
+		console.log(data.playerName);
+		names.push(data.playerName);
 		let counter = clients.length;
 		console.log(counter);
 		socket.emit('onePlayerJoined', counter);
 		for(i=0; i<clients.length; i++){
 			console.log("Player" + [i] + " is: " + clients[i]);
+			console.log("Player" + [i] + " is: " + names[i]);
+		}
+		if(counter == 4){
+			socket.emit('allPlayersJoined', "");
 		}
 	})
 
-// notify client side browser console when all players have joined
-socket.on('allPlayersJoined', function(){
-	text = "ALL PLAYERS HAVE JOINED";
-	socket.emit('allPlayersJoined', text);
-})
+// // notify client side browser console when all players have joined
+// socket.on('allPlayersJoined', function(){
+// 	text = "ALL PLAYERS HAVE JOINED";
+// 	socket.emit('allPlayersJoined', text);
+// })
 
 socket.on('chatMessage', (text)=>{
 	message = text;
@@ -69,6 +90,7 @@ socket.on('letTheGameBegin', function(){
 	splitDeck();
 	for(i=0; i<players.length; i++){
 		players[i].playerID = clients[i];
+		players[i].playerName = names[i];
 	}
 	data = {
 		players: players,
@@ -101,7 +123,9 @@ socket.on('letTheGameBegin', function(){
 						let currentPlayer = playerOrder[0]; // returns the current player
 						if(okPlayer == currentPlayer){
 							console.log("Card picked by player " + data.myID + " is: " + data.pickedCard);
-							text = "Player" + parseInt(playerOrder[0]+1) + " has picked " + data.pickedCard[0] + " " + data.pickedCard[1];
+							// text = "Player" + parseInt(playerOrder[0]+1) + " has picked " + data.pickedCard[0] + " " + data.pickedCard[1];
+							// io.of('/').emit('onCorrectPlayerPick', text);
+							text = "Player" + parseInt(playerOrder[0]+1) + ": " + data.pickedCard[0] + " " + data.pickedCard[1];
 							io.of('/').emit('onCorrectPlayerPick', text);
 							// remove player
 							playerOrder.shift();
