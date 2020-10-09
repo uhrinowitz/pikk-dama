@@ -11,12 +11,14 @@
 		<h1 class="display-4">Add meg a neved</h1>
 		<input id = "nameBox" class="form-control" placeholder="Név...">
 		<br>
+
 		<br>
 		<button id="send" class="btn btn-success" onclick="enterGame()">Belépés</button>
+		<!-- <textarea id = "textAreatext" class="form-control" placeholder="Your Message Here"></textarea> -->
 		</div>
 </div>
-
 <script>
+
 var socket = io.connect('http://localhost:4200');
 
 function enterGame(){
@@ -24,19 +26,14 @@ function enterGame(){
     let name = nameBox.value;
     if(name.length > 0){
         // rout player to gaming room
-        let playerName = name;
-        let playerSocketID = socket.io.engine.id;
-        let data = {
-            playerName: playerName,
-            playerSocketID: playerSocketID
-        };
-	    console.log("socket id sent to server is: " + playerSocketID + " + " + name);
-        socket.emit('join', data);
-        location.href = "\\games"
+        socket.emit('nameEntered', name);
 
     } else{
         // name required
         alert("Muszáj megadnod a neved!");
     }
+    
+
+
 }
 </script>
