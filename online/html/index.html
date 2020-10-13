@@ -24,14 +24,14 @@
 	<h2>Fekete macska</h2>
   </div>
 <div class="flex-container">
-	<div id="playerTop" >Player 1</div>
+	<div id="playerTop" ></div>
   </div>
   <div  class="flex-container">
-	<div id="playerRight">Player 2</div>
+	<div id="playerLeft"></div>
 	<div id="dobottKartyak" class="flex-subcontainer">Dobott kártyák:
 
 	</div>
-	<div id="playerBottom">Player 3</div>  
+	<div id="playerRight"></div>  
   </div>
   
   
@@ -58,12 +58,13 @@
 <script>
 var socket = io.connect('http://localhost:4200');
 let domTarget;
+let deskAlreadyOrdered = false;
 
 // when client connects to server
-socket.on('connect', (data) => {
-	let playerSocketID = socket.io.engine.id;
-	console.log("socket id sent to server is: " + playerSocketID);
-	socket.emit('join', playerSocketID);
+	socket.on('connect', (data) => {
+		let playerSocketID = socket.io.engine.id;
+		console.log("socket id sent to server is: " + playerSocketID);
+		socket.emit('join', playerSocketID);
 	});
 
 	// notifies of connections
@@ -114,10 +115,15 @@ socket.on('connect', (data) => {
 				// add
 				for(j=0; j<13; j++){
 					let link = '/' + "kepek" + '/' + data.players[i].playerCards[j].color+ "-" + data.players[i].playerCards[j].number + '.png';
-					console.log(link);
 					appendImg(link);
 				}
-				console.log("my player cards are: " + data.players[i].playerCards);
+				// asztali sorrend
+				// function deskOrder(myPlayerNumber, player1 = 'Player 1', player2 = 'Player 2', player3 = 'Player 3', player4 = 'Player 4')
+					if(data.players[i].playerID == mySocket){
+						myPlayerNumber = data.players[i].playerNum;
+						console.log("rendezem for player: " + myPlayerNumber)
+						deskOrder(myPlayerNumber);
+					}
 			}
 		}
 		socket.emit('boardDrawn', "");
@@ -132,12 +138,7 @@ socket.on('connect', (data) => {
 	socket.on('onCorrectPlayerPick', (text)=>{ // text = "0-0"
 		// check if we have 4 so new round can start clear
 		console.log("oncorrectplayerpick has run with text: " + text)
-		let numberOfDobottKartyak = document.querySelectorAll(".dobottKartyak");
-		if(numberOfDobottKartyak.length == 4){
-			for(i=0; i<numberOfDobottKartyak.length; i++){
-				numberOfDobottKartyak[i].remove();
-			}
-		}
+		removeMiddleCards();
 		let link = '/' + "kepek" + '/' + text + '.png';
 		appendImgDobott(link);
 		console.log("appending dobott kartyak: " + link)
@@ -166,73 +167,57 @@ socket.on('connect', (data) => {
 	socket.on('err', (message)=>{
 		console.log("Már negvannak négyen!");
 	})
-	socket.on('gameOver', ()=>{
-		text = "GAME OVER";
-		appendStats(text);
+	socket.on('nevErkezett', (players)=>{
+		let mySocket = socket.io.engine.id;
+		let myPlayerNumber;
+		let player1 = players[0].playerName;
+		let player2 = players[1].playerName;
+		let player3 = players[2].playerName;
+		let player4 = players[3].playerName;
+		for(i=0; i<4;i++){
+			if(players[i].playerID == mySocket){
+				myPlayerNumber = players[i].playerNum;
+			}
+		}
+		deskOrder(myPlayerNumber, player1, player2, player3, player4);
+	})
 
+	socket.on('gameOver', ()=>{
+		text = "Kör vége, kérlek egyelőre csak az OK-ra kattints!";
+		let uj = confirm(text);
+		// remove cards from table
+		if(uj){
+			let numberOfDobottKartyak = document.querySelectorAll(".dobottKartyak");
+			for(i=0; i<numberOfDobottKartyak.length; i++){
+				numberOfDobottKartyak[i].remove();
+			}
+			socket.emit('newGame', '');			
+		}
 		// create a score board
 
 		// redirect to landing page
 
 	})
 
-	socket.on('getPoints', (pontok)=>{
-		console.log("pontok: " + pontok)
-		// check if it hasn't been appended yet
-		let checkForH3 = document.getElementsByClassName("h3points");
-		if (checkForH3.length<1){
+socket.on('getPoints', (pontok)=>{
+	console.log("pontok: " + pontok)
+	pontok = pontok;
+	// check if it hasn't been appended yet
+	let checkForH3 = document.getElementsByClassName("h3points");
+	if (checkForH3.length<1){
+		let sor = pontok[0].length;
+		console.log("Table creálódik, sora: " + sor);
+		createTable(4, sor, pontok);
+		console.log("table created")
+	}
 
-
-
-
-	var table = document.createElement("table");
-	table.id = "pontTable"
-	var addToDiv = document.getElementById("jatekosPontok");
-	addToDiv.appendChild(table);
-       
-    for(let i=0;i<2;i++){
-    	let tr = document.createElement("tr");
-        let id = "pontSor" + i;
-        tr.setAttribute("id", id);
-        tr.className = "h3points"
-		var addToDiv = document.getElementById("pontTable");
-		addToDiv.appendChild(tr);
-    }
-    
-   for(let j=0;j<4;j++){
-   let th = document.createElement("th");
-   let id = "pontSorJatekos" + j;
-   th.setAttribute("id", id);
-   th.className="h3points"
-   text = document.createTextNode("Player" + parseInt(j+1));
-	th.appendChild(text);
-	var addToDiv = document.getElementById("pontSor0");
-	addToDiv.appendChild(th);
-   }
-    
-       for(let k=0;k<4;k++){
-   let td = document.createElement("th");
-   let id = "pontSorPonts" + k;
-   td.setAttribute("id", id);
-   td.className="h3points";
-   text = document.createTextNode(pontok[k]);
-	td.appendChild(text);
-	var addToDiv = document.getElementById("pontSor1");
-	addToDiv.appendChild(td);
-    
-
-}}
-
-
-
-			// var h3 = document.createElement("h3");
-			// h3.className = "h3points";
-			// text = document.createTextNode(text);
-			// h3.appendChild(text);
-			// var addToDiv = document.getElementById("myDropdown");
-			// addToDiv.appendChild(h3);
-		}
-	)
+function createTable(oszlop, sor, pontok){ 
+	//Create a new table 
+	var newTable = new Table(oszlop,sor, pontok); 
+	//get the element ‘content’ and put the new table inside 
+	document.getElementById("jatekosPontok").appendChild(newTable.build()); 
+	}
+})
 	
 // check if player's turn
 
@@ -262,6 +247,47 @@ socket.on('connect', (data) => {
 // 		socket.emit('playerPickedCard', data);
 // 	}
 // }
+class Table {
+		constructor(columns, rows, pontok) {
+		//Properties 
+		this.columns = columns; 
+		this.rows = rows;
+		this.pontok = pontok;
+		//create the html node <TABLE></TABLE> 
+		this.element = document.createElement("table"); 
+ 	}
+		build(columns, rows, pontok){
+			pontok = this.pontok;
+			for(var l=-1;l<this.rows;l++){ 
+				//New row <TR></TR>
+				var row = this.element.insertRow(); 
+				for(var c=0;c<this.columns;c++){ 
+					//New cell<TD></TD> 
+					var cell = row.insertCell();
+					cell.className = "h3points";
+					if(l==-1){
+						cell.appendChild(document.createTextNode("Player" + parseInt(c+1)));
+					} else {
+						cell.appendChild(document.createTextNode(sumRows(c, l, pontok))); 
+					}
+				} 
+			} 
+			return this.element; 
+		} 
+	}
+	function sumRows(c, l, pontok){
+	let sum = 0;
+		for(i=0; i<l+1; i++){
+			console.log("header száma is " + c)
+			console.log("pontjai " + pontok[c])
+			console.log("element is " + i)
+			console.log("elementek száma " + pontok[c].length)
+			sum+=pontok[c][i];
+			console.log("sum is: " + sum)
+		}
+	return sum;
+
+	}
 
 document.onclick = (e) => {
 	domTarget = e.target;
@@ -333,7 +359,14 @@ function appendStats (text, div="gamestats") {
 		addToDiv.appendChild(li);
 
 	} else{
+		let statCount = document.getElementsByClassName("stat");
+		if(statCount.length > 4){
+			for(i=0; i<statCount.length;i++){
+				statCount[i].remove();
+			}
+		}
 		var li = document.createElement("li");
+		li.className = "stat";
 		text = document.createTextNode(text);
 		li.appendChild(text);
 		var addToDiv = document.getElementById(div);
@@ -349,12 +382,144 @@ function showPoints(){
 // CHAT
 function sendMessage(){
 	let name = document.getElementById("name").value;
-	let message = document.getElementById("message").value;
-	text = name + " says: " + message;
-	socket.emit('chatMessage', text);
-	// reset content
-	let m = document.getElementById("message");
-	m.value = "";
+	if(name != ""){
+		let message = document.getElementById("message").value;
+		text = name + " says: " + message;
+		socket.emit('chatMessage', text);
+		// reset content
+		let m = document.getElementById("message");
+		m.value = "";
+		data = {
+			name: name,
+			myID: socket.io.engine.id
+		}
+		socket.emit('sendingMyName', data);
+	} else {
+		alert("Ha csetelni, akarsz, adj meg egy nevet!");
+	}
+}
+function removeMiddleCards(){
+	let numberOfDobottKartyak = document.querySelectorAll(".dobottKartyak");
+	console.log("dobottak: " + numberOfDobottKartyak)
+	if(numberOfDobottKartyak.length == 4){
+		for(i=0; i<numberOfDobottKartyak.length; i++){
+			numberOfDobottKartyak[i].remove();
+		}
+	}
+}
+
+function deskOrder(myPlayerNumber, player1 = 'Player 1', player2 = 'Player 2', player3 = 'Player 3', player4 = 'Player 4'){
+	switch(myPlayerNumber){
+		case 0:
+			document.getElementById('playerTop').innerHTML = player3;
+			document.getElementById('playerRight').innerHTML = player4;
+			document.getElementById('playerLeft').innerHTML = player2;
+			break;
+		case 1:
+			document.getElementById('playerTop').innerHTML = player4;
+			document.getElementById('playerRight').innerHTML = player1;
+			document.getElementById('playerLeft').innerHTML = player3;
+			break;
+		case 2:
+			document.getElementById('playerTop').innerHTML = player1;
+			document.getElementById('playerRight').innerHTML = player2;
+			document.getElementById('playerLeft').innerHTML = player4;
+			break;
+		case 3:
+			document.getElementById('playerTop').innerHTML = player2;
+			document.getElementById('playerRight').innerHTML = player3;
+			document.getElementById('playerLeft').innerHTML = player1;
+			break;
+		default:
+			console.log('Fail in deskOrder')
+
+	}
+}
+
+/*
+let pontok=[
+[1,2,3,4,5,6,7,8],
+[1,2,3,4,5,6,7,8],
+[1,2,3,4,5,6,7,8],
+[1,2,3,4,5,6,7,8]
+];
+let sor = pontok[0].length;
+
+
+var table = document.createElement("table");
+		table.id = "pontTable"
+		var addToDiv = document.getElementById("jatekosPontok");
+		addToDiv.appendChild(table);
+       
+    	for(let i=0;i<sor+1;i++){
+			let tr = document.createElement("tr");
+			let id = "pontSor" + i;
+			tr.setAttribute("id", id);
+			tr.className = "h3points"
+			var addToDiv = document.getElementById("pontTable");
+			addToDiv.appendChild(tr);
+    	}
+    
+		for(let j=0;j<4;j++){
+		let th = document.createElement("th");
+		let id = "pontSorJatekos" + j;
+		th.setAttribute("id", id);
+		th.className="h3points"
+		text = document.createTextNode("Player" + parseInt(j+1));
+		th.appendChild(text);
+		var addToDiv = document.getElementById("pontSor0");
+		addToDiv.appendChild(th);
+		}
+    //Create a new table 
+    var newTable = new Table(4,sor); 
+    //get the element ‘content’ and put the new table inside 
+    document.getElementById("jatekosPontok").appendChild(newTable.build()); }
+        
+function Table(columns, rows){ 
+    //Properties 
+    this.columns = columns; 
+    this.rows = rows; 
+    //create the html node <TABLE></TABLE> 
+    this.element = document.createElement("table"); 
+} 
+//Prototype of Table Class 
+Table.prototype = { 
+    //Method to build a table 
+    build:function(){ 
+        for(var l=0;l<this.rows;l++){ 
+            //New row <TR></TR>
+            var row = this.element.insertRow(); 
+            for(var c=0;c<this.columns;c++){ 
+                //New cell<TD></TD> 
+                var cell = row.insertCell();
+                cell.appendChild(document.createTextNode(sumRows(c, l))); 
+            } 
+        } 
+        return this.element; 
+    } 
+} 
+function sumRows(c, l){
+let sum = 0;
+	for(i=0; i<l+1; i++){
+    	
+console.log(pontok[c][i])
+sum+=pontok[c][i];
+console.log("sum is: " + sum)
+     }
+return sum;
 
 }
+
+
+function createTable(4, sor){ 
+    //Create a new table 
+    var newTable = new Table(4,sor); 
+    //get the element ‘content’ and put the new table inside 
+    document.getElementById("jatekosPontok").appendChild(newTable.build()); }
+Main();    
+
+
+
+*/
+
 </script>

@@ -40,6 +40,8 @@ let merre;
 let winner;
 let szin = null;
 let allitottam = false;
+let lehetosegek = [];
+let connectionNumber;
 
 // START OF SERVER-CLINt
 io.sockets.on('connection', (socket) => {
@@ -77,7 +79,6 @@ socket.on('chatMessage', (text)=>{
 })
 
 socket.on('letTheGameBegin', () => {
-
 	// create players
 	createPlayers();
 	console.log("Players created: " + players.length);
@@ -95,7 +96,6 @@ socket.on('letTheGameBegin', () => {
 	for(i=0; i<clients.length; i++){
 		io.to(players[i].playerID).emit('setupDone', data);
 	}
-	
 })
 
 // create player order for the first round
@@ -110,86 +110,52 @@ socket.on('boardDrawn', () =>{
 	originalPlayerOrder.length = 4;
 })
 
-// ==================================================================================
-// game loop
-
-socket.on('playerPickedCard', (data) => {
-	// check if current player has the card to call
-	//let okPlayer = checkCard(getCardColor(data.pickedCard[0]), getCardNumber(data.pickedCard[1])); // returns player number of the player who picked a card
-	let okPlayer = checkCard(data.pickedCard[0], data.pickedCard[1]); // pl. 0,0 for treff 2
-	let currentPlayer = playerOrder[0]; // returns the current player
-	if(okPlayer == currentPlayer){
-		
-		// meg kell még nézni, hogy a kiválasztott kártyát ki lehet-e játszani playerOrder[0]-nál
-		console.log("allitottam if elott? " + allitottam)
-		console.log("round: " + round)
-		
-		if(round == 1 && allitottam==false){
-			console.log(allitottam)
-			console.log("allitom a szint 0-ra");
-			szin = 0; // treffel lehet kezdeni
-			for(i=0; i<4; i++){
-				for(j=0;j<13;j++){
-					// megnézzük minden playernél, hogy van-e ilyen szine, és akkor csak azokbol hivhat
-					//console.log("playwrs: " + players);
-					//console.log("cards" + players[i].playerCards);
-					if(players[i].playerCards[j].color==szin){
-						players[i].lehetosegek.push({
-							color: players[i].playerCards[j].color,
-							number: players[i].playerCards[j].number
-						})
-					} else { // ha nincs, akkor az összes kártyáját hivhatja
-						players[i].lehetosegek = [...players[i].lehetosegek, ...players[i].playerCards]
-					}
-				}
-				console.log("lehetőségek: " + players[i].lehetosegek)
-			}
-			allitottam = true;
-		} else {
-			
-			if(playerOrder.length == 4 && allitottam == false){
-				szin = data.pickedCard[0];
-				for(i=0; i<4; i++){
-					for(j=0;j<13;j++){
-						if(players[i].playerCards[j].color==szin){
-							players[i].lehetosegek.push({
-								color: players[i].playerCards[j].color,
-								number: players[i].playerCards[j].number
-							})
-						} else { // ha nincs, akkor az összes kártyáját hivhatja
-							players[i].lehetosegek = [...players[i].lehetosegek, ...players[i].playerCards]
-						}
-					}
-				}
-
-
-				allitottam = true;
+socket.on('sendingMyName', (data)=>{
+	connectionNumber = io.engine.clientsCount;
+	if(connectionNumber == 4){
+		console.log(data.name)
+		for(i=0;i<4;i++){
+			if(players[i].playerID == data.myID){
+				players[i].playerName = data.name;
 			}
 		}
-		//console.log("a szin pedig: " + szin);
-		// meg van a hivott szinünk
+	socket.broadcast.emit('nevErkezett', players);
+	}
+})
 
-		text = data.pickedCard[0] + "-" + data.pickedCard[1] // 0-0 for treff 2";
-		io.of('/').emit('onCorrectPlayerPick', text);
-		// remove player
-		playerOrder.shift();
-		// add card for eval
-		evalCards.push({
-			color: parseInt(data.pickedCard[0]),
-			number: parseInt(data.pickedCard[1])
-			});
-		// remove card
-		removeCard(data.pickedCard[0], data.pickedCard[1]);
-		// remove card from DOM
-		io.to(data.myID).emit('removeCardfromDom', '');
-		console.log("Deck len is: " + deck.length);
+// ==================================================================================
+// game loop
+socket.on('playerPickedCard', (data) => {
+	// check if current player has the card to call
+	let okPlayer = checkCard(data.pickedCard[0], data.pickedCard[1]); // pl. 0,0 for treff 2
+	let currentPlayer = playerOrder[0]; // returns the current player
+	if (canCallHeart == false && data.pickedCard[0] == 2 && playerOrder.length == 4){
+		console.log("Kőrt még nem szabad hívni!")
+	}
+	else if(round == 1 && data.pickedCard[0] == 2){
+		console.log("Kőrt még nem szabad tenni!")
+	}
+	else if (canCallQofSpades == false && data.pickedCard[0] == 3 && data.pickedCard[1] == 10){
+		console.log("Pikk Q-t még nem szabad hívni!")	
+	}
+	else if(okPlayer == currentPlayer){
+
+		// addoljuk a hívható kártyákat
+		let szin = data.pickedCard[0];
+		addCardOptions(szin);
+
+		// megvan-e a player[currentplayer].lehetosegek-ben a data.pickedCard?
+		let szin1=data.pickedCard[0];
+		let szam1=data.pickedCard[1];
+		let currentID = data.myID;
+		playerHasCard(szin1, szam1, currentPlayer, currentID);
 	} else {
 		text = "Nem a te köröd van!";
 		io.to(data.myID).emit('notYourTurn', text);
 	}
 
-	
 	if(evalCards.length == 4){
+		// evaluate round
 		winner = evalRound(evalCards);
 		// reset array
 		evalCards.length = 0;
@@ -211,29 +177,203 @@ socket.on('playerPickedCard', (data) => {
 	}
 	if(deck.length == 0){
 		// game over
-		io.of('/').emit('gameOver', '');
+		checkEndOfCycle();
+
 	}
-})					
+})						
 
 socket.on("showPoints", (playerSocketID)=>{
-	let pontok = [];
+	connectionNumber = io.engine.clientsCount;
+	if(connectionNumber == 4){
+		let pontok = [];
+		for(i=0; i<4; i++){
+			let pontokTomb = [];
+			//pontokTomb = [...players[i].finalPoints]
+			pontokTomb = [1,2,3,4];
+			let points = 0;
+			for(j=0; j<players[i].playerInventory.length; j++){
+				if(players[i].playerInventory[j].color == 2){ // ha kőr
+					points+=1;
+				}
+				else if(players[i].playerInventory[j].color == 3){ // ha pick dáma
+					if(players[i].playerInventory[j].number==10){
+						points+=13;
+					}
+				}
+			}
+			pontokTomb.push(points);
+			pontok.push(pontokTomb);
+		}
+		console.log("A pontok hossza: "+pontok.length);
+		io.to(playerSocketID).emit('getPoints', pontok);		
+	}
+})
+
+function checkEndOfCycle(){
+	// game over when round == 14
+	if(round == 14){
+		cycle+=1;
+		io.of('/').emit('gameOver', '');
+	}
+
+}
+
+socket.on('newGame', ()=>{
+	// reset all global variables
+	deck = [];
+	connectionsLimit = 4;
+	playerOrder = [];
+	cardsToReceiveByPlayer = [];
+	originalPlayerOrder = [];
+	evalCards = [];
+	korElejenAtadottKartyak = 0;
+	round = 1;
+	atadasiKor = true;
+	canCallQofSpades = false;
+	canCallHeart = false
+	merre;
+	winner;
+	szin = null;
+	allitottam = false;
+	lehetosegek = [];
+	players.playerCards = [];
+	players.playerInventory = [];
+	players.lehetosegek = [];
+	// felírom, hány pontja van egy array-be
 	for(i=0; i<4; i++){
-		let points = 0;
+		let finalPoints = 0;
 		for(j=0; j<players[i].playerInventory.length; j++){
 			if(players[i].playerInventory[j].color == 2){ // ha kőr
-				points+=1;
+				finalPoints+=1;
 			}
 			else if(players[i].playerInventory[j].color == 3){ // ha pick dáma
 				if(players[i].playerInventory[j].number==10){
-					points+=13;
+					finalPoints+=13;
 				}
 			}
 		}
-		pontok.push(points);		
+		players[i].finalPoints.push(finalPoints);		
 	}
-	console.log(pontok);
-	io.to(playerSocketID).emit('getPoints', pontok);
+
+	players.playerInventory = [];
+	console.log("Vettem!")
+	createCards();
+	shuffle(deck);
+	splitDeck();
+	data = {
+		players: players,
+		clients:clients
+	}
+	for(i=0; i<clients.length; i++){
+		io.to(players[i].playerID).emit('setupDone', data);
+	}
+	
 })
+
+function playerHasCard(szin, szam, currentPlayer, currentID){
+	text = szin + "-" + szam // 0-0 for treff 2";
+	console.log("picked cards for " + currentPlayer + " :" + text)
+	for(i=0;i<players[currentPlayer].lehetosegek.length; i++){
+		if(players[currentPlayer].lehetosegek[i].color == szin){
+			if(players[currentPlayer].lehetosegek[i].number == szam){
+				io.of('/').emit('onCorrectPlayerPick', text);
+				// remove player
+				playerOrder.shift();
+				// add card for eval
+				evalCards.push({
+					color: parseInt(szin),
+					number: parseInt(szam)
+					});
+				// remove card
+				removeCard(szin, szam);
+				// remove card from DOM
+				io.to(currentID).emit('removeCardfromDom', '');
+				//console.log("Deck len is: " + deck.length);				
+			} else { console.log("Ezt a kártyát nem tudja pickelni!") }
+		}
+	}
+
+}
+
+function addCardOptions(szin){
+	if(round == 1 && allitottam==false){
+		// első körben csak treffet szabad
+		szin = 0;
+		generateCardOptions(szin);
+	} else {
+		// nem az első kör
+		if(playerOrder.length == 4 && allitottam == false){
+			generateCardOptions2(szin);
+		}
+	}
+}
+function generateCardOptions2(szin){
+	for(i=0; i<4; i++){
+		for(j=0;j<players[i].playerCards.length; j++){
+			if(players[i].playerCards[j].color==szin){
+			// van ilyen szine
+				lehetosegek.push({
+					color: players[i].playerCards[j].color,
+					number: players[i].playerCards[j].number
+				})
+			}
+		}
+		if(lehetosegek.length == 0){
+		// nincs ilyen szine
+			lehetosegek = [...players[i].playerCards];						
+		}
+		// hozzáadom az adott playerhez a lehetőségeket
+		players[i].lehetosegek = [... lehetosegek];
+		console.log("A lehetőségek: " )
+		strLehet = JSON.stringify(lehetosegek);
+		console.log("lehetőségek: " + strLehet)
+		// majd üritem a tömböt a következő iterációhoz
+		lehetosegek = [];
+	}
+	// hogy csak egy körben egyszer legyen ez a check
+	allitottam = true;
+
+}
+
+function generateCardOptions(szin){
+	for(i=0; i<4; i++){
+		for(j=0;j<players[i].playerCards.length; j++){
+			if(players[i].playerCards[j].color==szin){
+			// van ilyen szine
+				lehetosegek.push({
+					color: players[i].playerCards[j].color,
+					number: players[i].playerCards[j].number
+				})
+			}
+			if(lehetosegek.length == 0){
+			// nincs ilyen szine
+				lehetosegek = [...players[i].playerCards];
+			}
+		}
+		// hozzáadom az adott playerhez a lehetőségeket
+		// player 1 csak treff 2-t hívhat
+		if(i==playerOrder[0]){
+			players[i].lehetosegek.push({
+				color: 0,
+				number: 0
+			})
+			console.log("A lehetőségek player" + i )
+			strLehet = JSON.stringify(lehetosegek);
+			console.log("lehetőségek: " + strLehet)
+		} else {
+			players[i].lehetosegek = [... lehetosegek];
+			console.log("A lehetőségek player" + i )
+			strLehet = JSON.stringify(lehetosegek);
+			console.log("lehetőségek: " + strLehet)
+		}
+
+		
+		// majd üritem a tömböt a következő iterációhoz
+		lehetosegek = [];
+	}
+	// hogy csak egy körben egyszer legyen ez a check
+	allitottam = true;
+}
 					// ==================================================================================
 					// game loop
 
@@ -370,6 +510,7 @@ socket.on("showPoints", (playerSocketID)=>{
 
 function incrementRound(){
 	allitottam = false;
+	canCallQofSpades = true;
 	return round += 1;
 
 }
@@ -500,7 +641,6 @@ function getPlayerOrder(color, number){
 			}
 
 		}
-
 	}
 	console.log("playerorder from getplayerorder: " + playerOrder)
 }
@@ -522,6 +662,7 @@ class Player {
 		this.playerName;
 		this.cardsToPass = [];
 		this.lehetosegek = [];
+		this.finalPoints = [];
 	}
 }
 
@@ -607,53 +748,4 @@ function checkCard(color, number){
 
 	}
 }
-
-function getCardNumber(number){
-	switch(number){
-		case "2":
-			return 0;
-		case "3":
-			return 1;
-		case "4":
-			return 2;
-		case "5":
-			return 3;
-		case "6":
-			return 4;
-		case "7":
-			return 5;
-		case "8":
-			return 6;
-		case "9":
-			return 7;
-		case "10":
-			return 8;
-		case "Bubi":
-			return 9;
-		case "Dáma":
-			return 10;
-		case "Király":
-			return 11;
-		case "Ász":
-			return 12;
-		default:
-			console.log("fail");
-		}
-	}
-
-function getCardColor(color){
-	switch (color){
-		case "Treff":
-			return 0;
-		case "Káró":
-			return 1;
-		case "Kőr":
-			return 2;
-		case "Pikk":
-			return 3;
-		default:
-			console.log("fail");
-	}
-}
-
 server.listen(appPort);
